@@ -47,6 +47,25 @@ Vicinae currently runs best on **wlroots-based compositors**, such as **Hyprland
 
 ---
 
+## 🔄 Fork Maintenance
+
+This fork includes an update script to easily sync with the upstream repository:
+
+```bash
+# Sync with upstream and merge changes
+./update.sh
+```
+
+**Manual commands:**
+```bash
+# Fetch and merge upstream changes
+git fetch upstream
+git merge upstream/main
+git push origin main
+```
+
+---
+
 ## 📚 Documentation
 
 For more details on installation, usage, configuration, extension development, and contributing, visit [docs.vicinae.com](https://docs.vicinae.com).
