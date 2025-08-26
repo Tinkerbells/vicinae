@@ -7,9 +7,9 @@
 #include "utils/utils.hpp"
 #include "zip/unzip.hpp"
 #include <filesystem>
-#include <qfilesystemwatcher.h>
-#include <qjsonparseerror.h>
-#include <qlogging.h>
+#include <QFileSystemWatcher>
+#include <QJsonParseError>
+#include <QLoggingCategory>
 
 namespace fs = std::filesystem;
 

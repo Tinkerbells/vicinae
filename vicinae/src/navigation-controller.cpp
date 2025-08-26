@@ -1,8 +1,9 @@
 #include "navigation-controller.hpp"
 #include "ui/keyboard.hpp"
 #include "ui/views/base-view.hpp"
-#include <qlogging.h>
-#include <qwidget.h>
+#include <ranges>
+#include <QLoggingCategory>
+#include <QWidget>
 
 NavigationController::NavigationController(ApplicationContext &ctx) : m_ctx(ctx) {}
 

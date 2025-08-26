@@ -5,12 +5,11 @@
 #include "services/toast/toast-service.hpp"
 #include "settings-controller/settings-controller.hpp"
 #include "services/extension-registry/extension-registry.hpp"
-#include <qlogging.h>
-#include <qobjectdefs.h>
+#include <QLoggingCategory>
 #include "extension/manager/extension-manager.hpp"
-#include <qsqlquery.h>
-#include <qurl.h>
-#include <qurlquery.h>
+#include <QSqlQuery>
+#include <QUrl>
+#include <QUrlQuery>
 #include "navigation-controller.hpp"
 #include "service-registry.hpp"
 #include "omni-command-db.hpp"
@@ -38,8 +37,8 @@ proto::ext::daemon::Response *IpcCommandHandler::handleCommand(const proto::ext:
 
 void IpcCommandHandler::handleUrl(const QUrl &url) {
   if (!std::ranges::contains(Omnicast::APP_SCHEMES, url.scheme())) {
-    qWarning() << "Unsupported url scheme" << url.scheme() << "Supported schemes are"
-               << Omnicast::APP_SCHEMES;
+    qWarning() << "Unsupported url scheme" << url.scheme() << "Supported schemes are:"
+               << Omnicast::APP_SCHEMES[0] << "," << Omnicast::APP_SCHEMES[1];
     return;
   }
 
