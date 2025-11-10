@@ -1,4 +1,8 @@
 #include "qt-clipboard-server.hpp"
+#include <QImage>
+#include <QImageWriter>
+#include <QPixmap>
+#include <QVariant>
 #include <ranges>
 
 bool AbstractQtClipboardServer::start() {
@@ -45,6 +49,27 @@ void AbstractQtClipboardServer::dataChanged() {
       offer.mimeType = selectedFormat;
       offer.data = mimeData->data(selectedFormat);
       selection.offers.emplace_back(offer);
+    } else {
+      // Some X11 apps only expose application/x-qt-image, so synthesize a PNG offer
+      auto variant = mimeData->imageData();
+      QImage image;
+      if (variant.canConvert<QImage>()) {
+        image = qvariant_cast<QImage>(variant);
+      } else if (variant.canConvert<QPixmap>()) {
+        image = qvariant_cast<QPixmap>(variant).toImage();
+      }
+
+      if (!image.isNull()) {
+        QBuffer buffer;
+        buffer.open(QIODevice::WriteOnly);
+        QImageWriter writer(&buffer, "PNG");
+        if (writer.write(image)) {
+          ClipboardDataOffer offer;
+          offer.mimeType = "image/png";
+          offer.data = buffer.data();
+          selection.offers.emplace_back(offer);
+        }
+      }
     }
   }
 

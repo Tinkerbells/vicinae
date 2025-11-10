@@ -16,6 +16,7 @@
 #include <qt6keychain/keychain.h>
 #include <QtConcurrent/QtConcurrent>
 #include <QFutureWatcher>
+#include <QList>
 #include <QBuffer>
 #include <QImage>
 #include "clipboard-server-factory.hpp"
@@ -32,6 +33,67 @@
 #include "services/window-manager/window-manager.hpp"
 
 namespace fs = std::filesystem;
+
+namespace {
+
+std::optional<QString> decodePlainTextOffer(const ClipboardDataOffer &offer) {
+  const QString normalized = Utils::normalizeMimeName(offer.mimeType);
+  if (normalized == "text/html" || normalized == "text/uri-list") { return std::nullopt; }
+
+  if (!Utils::isTextMimeType(offer.mimeType)) { return std::nullopt; }
+
+  const QString lower = offer.mimeType.toLower();
+
+  if (offer.mimeType == "UTF8_STRING" || lower.contains("charset=utf-8")) {
+    return QString::fromUtf8(offer.data);
+  }
+
+  if (offer.mimeType == "STRING" || offer.mimeType == "TEXT" || offer.mimeType == "COMPOUND_TEXT") {
+    return QString::fromLocal8Bit(offer.data);
+  }
+
+  if (lower.contains("charset=utf-16")) {
+    if (offer.data.size() % 2 != 0) { return std::nullopt; }
+    auto u16 = reinterpret_cast<const char16_t *>(offer.data.constData());
+    return QString::fromUtf16(u16, offer.data.size() / 2);
+  }
+
+  return QString::fromUtf8(offer.data);
+}
+
+QList<QUrl> decodeUriList(const QByteArray &data) {
+  QList<QUrl> urls;
+  const QList<QByteArray> lines = data.split('\n');
+
+  for (auto line : lines) {
+    line = line.trimmed();
+    if (line.isEmpty() || line.startsWith('#')) { continue; }
+    auto trimmed = QString::fromUtf8(line);
+    if (trimmed.endsWith('\r')) { trimmed.chop(1); }
+    QUrl url(trimmed);
+    if (url.isValid()) { urls.push_back(url); }
+  }
+
+  return urls;
+}
+
+std::optional<QImage> decodeImageOffer(const ClipboardDataOffer &offer) {
+  if (!offer.mimeType.startsWith("image/")) { return std::nullopt; }
+
+  QBuffer buffer;
+  buffer.setData(offer.data);
+
+  if (!buffer.open(QIODevice::ReadOnly)) { return std::nullopt; }
+
+  QImageReader reader(&buffer);
+  QImage image = reader.read();
+
+  if (image.isNull()) { return std::nullopt; }
+
+  return image;
+}
+
+} // namespace
 
 /**
  * If any of these is found in a selection, we ignore the entire selection.
@@ -519,9 +581,42 @@ bool ClipboardService::copySelection(const ClipboardSelection &selection,
   }
 
   QMimeData *mimeData = new QMimeData;
+  bool textSet = false;
+  bool htmlSet = false;
+  bool urlsSet = false;
+  bool imageSet = false;
 
   for (const auto &offer : selection.offers) {
     mimeData->setData(offer.mimeType, offer.data);
+
+    const QString normalized = Utils::normalizeMimeName(offer.mimeType);
+
+    if (!htmlSet && normalized == "text/html") {
+      mimeData->setHtml(QString::fromUtf8(offer.data));
+      htmlSet = true;
+    }
+
+    if (!urlsSet && normalized == "text/uri-list") {
+      auto urls = decodeUriList(offer.data);
+      if (!urls.isEmpty()) {
+        mimeData->setUrls(urls);
+        urlsSet = true;
+      }
+    }
+
+    if (!imageSet && offer.mimeType.startsWith("image/")) {
+      if (auto image = decodeImageOffer(offer)) {
+        mimeData->setImageData(*image);
+        imageSet = true;
+      }
+    }
+
+    if (!textSet) {
+      if (auto text = decodePlainTextOffer(offer)) {
+        mimeData->setText(*text);
+        textSet = true;
+      }
+    }
   }
 
   return copyQMimeData(mimeData, options);
